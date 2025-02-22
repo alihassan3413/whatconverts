@@ -364,6 +364,9 @@ const columns = ref([
   'sales_value',
   'lead_source',
   'lead_medium',
+  'lead_campaign',
+  'spotted_keywords',
+  'lead_keyword',
 ])
 
 const handleLogout = () => {
@@ -442,6 +445,9 @@ const exportToExcel = async () => {
     loading.value = true // Start loading
     const allLeads = await leadStore.fetchAllLeadsForExport(startDate.value, endDate.value)
 
+    // Log the API response for debugging
+    console.log('API Response:', allLeads)
+
     if (allLeads.length) {
       const exportData = allLeads.map((lead) => ({
         'Account ID': lead.account_id,
@@ -459,6 +465,9 @@ const exportToExcel = async () => {
         'Sales Value': lead.sales_value,
         'Lead Source': lead.lead_source,
         'Lead Medium': lead.lead_medium,
+        'Lead Campaign': lead.lead_campaign?.trim() || '-', // Trim and fallback
+        'Spotted Keywords': lead.spotted_keywords?.trim() || '-', // Trim and fallback
+        'Lead Keyword': lead.lead_keyword?.trim() || '-', // Trim and fallback
       }))
 
       const worksheet = XLSX.utils.json_to_sheet(exportData)

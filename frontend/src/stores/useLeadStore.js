@@ -27,6 +27,9 @@ const LEAD_COLUMNS = [
   'sales_value',
   'lead_source',
   'lead_medium',
+  'lead_campaign',
+  'spotted_keywords',
+  'lead_keyword',
 ]
 
 const api = axios.create({
@@ -128,6 +131,8 @@ export const useLeadStore = defineStore('lead', {
           },
         })
 
+        console.log('First Page Response:', firstPage.data) // Log the API response
+
         if (!firstPage.data || !Array.isArray(firstPage.data.leads)) {
           throw new Error('Invalid data format received from API')
         }
@@ -155,6 +160,9 @@ export const useLeadStore = defineStore('lead', {
           }
         }
 
+        // Log the final leads data
+        console.log('All Leads:', allLeads)
+
         // Format all leads for export
         return allLeads.map((lead) => {
           // Check if account_id matches any what_converts_id in clients data
@@ -176,6 +184,9 @@ export const useLeadStore = defineStore('lead', {
             sales_value: lead.sales_value,
             lead_source: lead.lead_source,
             lead_medium: lead.lead_medium,
+            lead_campaign: lead.lead_campaign || '-', // Ensure this matches the API response
+            spotted_keywords: lead.spotted_keywords || '-', // Ensure this matches the API response
+            lead_keyword: lead.lead_keyword || '-', // Ensure this matches the API response
           }
         })
       } catch (err) {
