@@ -76,7 +76,7 @@
               <!-- Action Buttons with Icons -->
               <button
                 @click="fetchLeads"
-                class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                class="flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -84,7 +84,7 @@
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
                   stroke="currentColor"
-                  class="w-4 h-4 mr-2"
+                  class="w-4 h-4"
                 >
                   <path
                     stroke-linecap="round"
@@ -92,7 +92,28 @@
                     d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
                   />
                 </svg>
-                <span class="md:inline">Update Data</span>
+                <!-- <span class="md:inline">Update Data</span> -->
+              </button>
+
+              <button
+                @click="importData"
+                class="flex items-center justify-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-4 h-4"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                  />
+                </svg>
+                <!-- <span class="md:inline">Import Data</span> -->
               </button>
 
               <button
@@ -127,7 +148,7 @@
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
                   stroke="currentColor"
-                  class="w-4 h-4 mr-2"
+                  class="w-4 h-4"
                 >
                   <path
                     stroke-linecap="round"
@@ -135,7 +156,7 @@
                     d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
                   />
                 </svg>
-                <span class="md:inline">Logout</span>
+                <!-- <span class="md:inline">Logout</span> -->
               </button>
             </div>
           </div>
@@ -342,9 +363,11 @@ import { useLeadStore } from '../stores/useLeadStore'
 import LoadingBar from '../components/Loading.vue'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'vue-router'
+import { useGoogleSheets } from '../stores/useGoogleSheets'
 
 const router = useRouter()
 const leadStore = useLeadStore()
+const { fetchSheets } = useGoogleSheets()
 
 const pageSize = ref(25)
 const pageSizeOptions = [25, 50, 100, 150, 200, 250]
@@ -416,12 +439,22 @@ const averageQuoteValue = computed(() =>
     maximumFractionDigits: 2,
   }),
 )
-const isLoading = computed(() => leadStore.isLoading)
-const error = computed(() => leadStore.error)
+
 const totalPages = computed(() => leadStore.totalPages)
 const currentPage = computed(() => leadStore.currentPage)
 const totalLeads = computed(() => leadStore.totalLeads)
 const loading = ref(false) // Add this to track loading state
+
+const importData = async () => {
+  try {
+    loading.value = true // Start loading
+    await fetchSheets()
+  } catch (error) {
+    console.error('Error importing data:', error)
+  } finally {
+    loading.value = false // Stop loading
+  }
+}
 
 const fetchLeads = async (page = 1) => {
   try {
