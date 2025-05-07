@@ -198,7 +198,7 @@ const handleLogin = async () => {
 
     // Store the token
     localStorage.setItem('token', response.data.data.token)
-    console.log('Token stored:', response.data.token) // Debugging
+     ('Token stored:', response.data.token) // Debugging
 
     // Redirect to dashboard AFTER storing the token
     router.push({ name: 'dashboard' })
