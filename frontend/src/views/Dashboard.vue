@@ -69,26 +69,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { useLeadStore } from '../stores/useLeadStore'
-import { useGoogleSheets } from '../stores/useGoogleSheets'
-import LoadingBar from '../components/Loading.vue'
-import DashboardHeader from '../components/DashboardHeader.vue'
-import MetricsCard from '../components/MetricsCard.vue'
-import LeadsTable from '../components/LeadsTable.vue'
-import * as XLSX from 'xlsx'
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { useLeadStore } from '../stores/useLeadStore';
+import { useGoogleSheets } from '../stores/useGoogleSheets';
+import LoadingBar from '../components/Loading.vue';
+import DashboardHeader from '../components/DashboardHeader.vue';
+import MetricsCard from '../components/MetricsCard.vue';
+import LeadsTable from '../components/LeadsTable.vue';
+import * as XLSX from 'xlsx';
 
-const router = useRouter()
-const leadStore = useLeadStore()
-const currentAccount = computed(() => leadStore.currentAccount)
-const { fetchSheets } = useGoogleSheets()
+const router = useRouter();
+const leadStore = useLeadStore();
+const currentAccount = computed(() => leadStore.currentAccount);
+const { fetchSheets } = useGoogleSheets();
 
 // Reactive state
-const startDate = ref(new Date().toISOString().split('T')[0])
-const endDate = ref(new Date().toISOString().split('T')[0])
-const pageSize = ref(25)
-const loading = ref(false)
+const startDate = ref(new Date().toISOString().split('T')[0]);
+const endDate = ref(new Date().toISOString().split('T')[0]);
+const pageSize = ref(25);
+const loading = ref(false);
 const columns = ref([
   'account_id',
   'account',
@@ -104,58 +104,58 @@ const columns = ref([
   'lead_campaign',
   'spotted_keywords',
   'lead_keyword'
-])
+]);
 
 // Computed properties
-const leads = computed(() => leadStore.leads)
+const leads = computed(() => leadStore.leads);
 const totalSalesValue = computed(() =>
   leads.value
     .reduce((sum, lead) => sum + (Number(lead.sales_value) || 0), 0)
     .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-)
+);
 const totalQuoteValue = computed(() =>
   leads.value
     .reduce((sum, lead) => sum + (Number(lead.quote_value) || 0), 0)
     .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-)
-const quotableLeads = computed(() => leads.value.filter(lead => lead.quotable === 'Yes').length)
+);
+const quotableLeads = computed(() => leads.value.filter(lead => lead.quotable === 'Yes').length);
 const quotablePercentage = computed(() =>
   ((quotableLeads.value / leads.value.length) * 100 || 0).toFixed(1)
-)
+);
 const averageSaleValue = computed(() => {
-  const total = leads.value.reduce((sum, lead) => sum + (Number(lead.sales_value) || 0), 0)
+  const total = leads.value.reduce((sum, lead) => sum + (Number(lead.sales_value) || 0), 0);
   return (total / (leads.value.length || 1)).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  })
-})
+  });
+});
 const averageQuoteValue = computed(() => {
-  const total = leads.value.reduce((sum, lead) => sum + (Number(lead.quote_value) || 0), 0)
+  const total = leads.value.reduce((sum, lead) => sum + (Number(lead.quote_value) || 0), 0);
   return (total / (leads.value.length || 1)).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  })
-})
-const totalPages = computed(() => leadStore.totalPages)
-const currentPage = computed(() => leadStore.currentPage)
-const totalLeads = computed(() => leadStore.totalLeads)
+  });
+});
+const totalPages = computed(() => leadStore.totalPages);
+const currentPage = computed(() => leadStore.currentPage);
+const totalLeads = computed(() => leadStore.totalLeads);
 
 // Methods
 const formatDateRange = (start, end) => {
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-}
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+};
 
 const handlePageSizeChange = async (newSize) => {
-  pageSize.value = Number(newSize)
-  await fetchLeads(1)
-}
+  pageSize.value = Number(newSize);
+  await fetchLeads(1);
+};
 
 const goToPage = async (page) => {
-  if (page < 1 || page > totalPages.value) return
-  await fetchLeads(page)
-}
+  if (page < 1 || page > totalPages.value) return;
+  await fetchLeads(page);
+};
 
 async function handleAccountSwitch(account) {
   console.log('handleAccountSwitch called with account:', account);
@@ -184,45 +184,48 @@ async function handleAccountSwitch(account) {
 
 const fetchLeads = async (page = 1) => {
   try {
-    loading.value = true
+    loading.value = true;
     await leadStore.fetchLeads(
       startDate.value,
       endDate.value,
       page,
       pageSize.value
-    )
+    );
   } catch (error) {
-    console.error('Error fetching leads:', error)
+    console.error('Error fetching leads:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const importData = async () => {
   try {
-    loading.value = true
-    await fetchSheets()
-    await fetchLeads(1)
+    loading.value = true;
+    await fetchSheets();
+    await fetchLeads(1);
   } catch (error) {
-    console.error('Import error:', error)
-    alert('Failed to import data. Please check your connection.')
+    console.error('Import error:', error);
+    alert('Failed to import data. Please check your connection.');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const exportToExcel = async () => {
   try {
-    loading.value = true
-    const allLeads = await leadStore.fetchAllLeadsForExport(startDate.value, endDate.value)
+    loading.value = true;
+    console.log(`Exporting leads for account: ${currentAccount.value.name} (ID: ${currentAccount.value.id})`);
+    const allLeads = await leadStore.fetchAllLeadsForExport(startDate.value, endDate.value, currentAccount.value);
 
     if (allLeads.length === 0) {
-      alert('No data to export')
-      return
+      alert('No data to export');
+      return;
     }
 
+    console.log(`Exporting ${allLeads.length} leads`, allLeads.slice(0, 5)); // Log first 5 leads for debugging
+
     const exportData = allLeads.map(lead => ({
-      'Account ID': lead.account_id,
+      'Client ID': lead.account_id, // account_id is already mapped to client_id in fetchAllLeadsForExport
       Account: lead.account,
       'Profile ID': lead.profile_id,
       Profile: lead.profile,
@@ -238,26 +241,26 @@ const exportToExcel = async () => {
       'Lead Campaign': lead.lead_campaign?.trim() || '-',
       'Spotted Keywords': lead.spotted_keywords?.trim() || '-',
       'Lead Keyword': lead.lead_keyword?.trim() || '-'
-    }))
+    }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads')
-    XLSX.writeFile(workbook, `leads_${startDate.value}_to_${endDate.value}.xlsx`)
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
+    XLSX.writeFile(workbook, `${currentAccount.value.name.replace(/\s+/g, '_')}_leads_${startDate.value}_to_${endDate.value}.xlsx`);
   } catch (error) {
-    console.error('Export error:', error)
-    alert('Failed to export data. Please try again.')
+    console.error('Export error:', error);
+    alert('Failed to export data. Please try again.');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const handleLogout = () => {
-  localStorage.removeItem('token')
-  router.push({ name: 'login' })
-}
+  localStorage.removeItem('token');
+  router.push({ name: 'login' });
+};
 
 // Watchers and lifecycle hooks
-watch([startDate, endDate], () => fetchLeads(1))
-onMounted(() => fetchLeads())
+watch([startDate, endDate], () => fetchLeads(1));
+onMounted(() => fetchLeads());
 </script>

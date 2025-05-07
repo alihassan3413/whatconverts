@@ -50,6 +50,11 @@ const LEAD_COLUMNS = [
   'lead_keyword',
 ]
 
+// Configure Axios with cache-busting headers
+axios.defaults.headers.common['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+axios.defaults.headers.common['Pragma'] = 'no-cache'
+axios.defaults.headers.common['Expires'] = '0'
+
 export const useLeadStore = defineStore('lead', {
   state: () => ({
     leads: ref([]),
@@ -59,7 +64,8 @@ export const useLeadStore = defineStore('lead', {
     totalPages: ref(0),
     totalLeads: ref(0),
     leadsPerPage: ref(25),
-    currentAccount: ref(ACCOUNTS.account1), // Default to Main Account
+    currentAccount: ref(ACCOUNTS.account1),
+    clientMap: ref({}),
   }),
 
   getters: {
@@ -112,6 +118,7 @@ export const useLeadStore = defineStore('lead', {
           console.log(
             `Switched to account: ${this.currentAccount.name} (ID: ${accountId}, Token: ${this.currentAccount.token})`,
           )
+          this.leads = [] // Reset leads to avoid stale data
           return true
         } catch (error) {
           console.error('Error switching account:', error)
@@ -130,6 +137,7 @@ export const useLeadStore = defineStore('lead', {
       const headers = {
         Authorization: `Basic ${basicAuth}`,
         Accept: 'application/json',
+        'Cache-Control': 'no-cache',
       }
       return axios.create({
         baseURL: 'https://app.whatconverts.com/api/v1',
@@ -140,7 +148,7 @@ export const useLeadStore = defineStore('lead', {
     async fetchLeads(startDate, endDate, page = 1, leadsPerPage = 25) {
       this.isLoading = true
       this.error = null
-      this.leads = [] // Clear previous leads
+      this.leads = []
       this.totalLeads = 0
       this.totalPages = 0
       this.currentPage = page
@@ -163,12 +171,12 @@ export const useLeadStore = defineStore('lead', {
             end_date: formattedEndDate,
             page_number: page,
             leads_per_page: leadsPerPage,
-            cache_buster: Date.now(), // Prevent caching
+            cache_buster: Date.now(),
           },
         })
 
         if (response.data && Array.isArray(response.data.leads)) {
-          console.log('Updating store state with new leads')
+          console.log(`Fetched ${response.data.leads.length} leads for ${this.currentAccount.name}`)
           this.leads = response.data.leads
           this.totalPages = response.data.total_pages || 1
           this.totalLeads = response.data.total_leads || this.leads.length
@@ -190,20 +198,22 @@ export const useLeadStore = defineStore('lead', {
       }
     },
 
-    async fetchAllLeadsForExport(startDate, endDate) {
+    async fetchAllLeadsForExport(startDate, endDate, account) {
       this.isLoading = true
       this.error = null
       let allLeads = []
 
       try {
         const clientsMap = await this.fetchClients()
-        const api = this.createApiClient(this.currentAccount)
+        console.log(`Fetching leads for account: ${account.name} (ID: ${account.id})`)
+        const api = this.createApiClient(account)
         const firstPage = await api.get('/leads', {
           params: {
             start_date: formatDate(startDate),
             end_date: formatDate(endDate),
             page_number: 1,
             leads_per_page: 250,
+            cache_buster: Date.now(),
           },
         })
 
@@ -213,6 +223,9 @@ export const useLeadStore = defineStore('lead', {
 
         const totalPages = firstPage.data.total_pages || 1
         allLeads = [...firstPage.data.leads]
+        console.log(
+          `Account ${account.name}: Fetched page 1/${totalPages}, ${allLeads.length} leads`,
+        )
 
         if (totalPages > 1) {
           for (let page = 2; page <= totalPages; page++) {
@@ -223,15 +236,20 @@ export const useLeadStore = defineStore('lead', {
                 end_date: formatDate(endDate),
                 page_number: page,
                 leads_per_page: 250,
+                cache_buster: Date.now(),
               },
             })
 
             if (response.data && Array.isArray(response.data.leads)) {
               allLeads = [...allLeads, ...response.data.leads]
+              console.log(
+                `Account ${account.name}: Fetched page ${page}/${totalPages}, ${allLeads.length} leads`,
+              )
             }
           }
         }
 
+        console.log(`Total leads for ${account.name}: ${allLeads.length}`)
         return allLeads.map((lead) => {
           const clientId = clientsMap[lead.account_id]
           return {
@@ -257,6 +275,7 @@ export const useLeadStore = defineStore('lead', {
         })
       } catch (err) {
         this.handleError(err)
+        console.error('Error in fetchAllLeadsForExport:', err)
         return []
       } finally {
         this.isLoading = false
@@ -286,13 +305,23 @@ export const useLeadStore = defineStore('lead', {
     },
 
     async fetchClients() {
+      if (Object.keys(this.clientMap).length > 0) {
+        console.log('Returning cached clientMap')
+        return this.clientMap
+      }
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/clients`)
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/clients`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        })
         if (response.data && response.data.status === 'success') {
-          return response.data.data.reduce((map, client) => {
+          this.clientMap = response.data.data.reduce((map, client) => {
             map[client.what_converts_id] = client.client_id
             return map
           }, {})
+          console.log('Fetched clientMap:', this.clientMap)
+          return this.clientMap
         } else {
           throw new Error('Invalid data format received from clients API')
         }
