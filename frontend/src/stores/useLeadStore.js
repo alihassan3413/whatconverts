@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 
 // Account configurations
 const ACCOUNTS = {
@@ -8,16 +8,15 @@ const ACCOUNTS = {
     id: 'account1',
     name: 'Main Account',
     token: '6362-ac5646e8b7a691bc',
-    secret: 'e3fe06878301dd5c1244e8db3225775a'
+    secret: 'e3fe06878301dd5c1244e8db3225775a',
   },
   account2: {
     id: 'account2',
     name: 'Secondary Account',
     token: '8466-035cefafcf94d90f',
-    secret: '3d17deb69503b6daf73e9bbcc682444d'
-  }
+    secret: '3d17deb69503b6daf73e9bbcc682444d',
+  },
 }
-
 
 const formatDate = (date) => {
   if (!date || typeof date !== 'string') {
@@ -97,13 +96,12 @@ export const useLeadStore = defineStore('lead', {
 
     availableAccounts: () => [
       { id: 'account1', name: 'Main Account' },
-      { id: 'account2', name: 'Secondary Account' }
-    ]
+      { id: 'account2', name: 'Secondary Account' },
+    ],
   },
 
   actions: {
     async switchAccount(accountId) {
-       ('Attempting to switch to accountId:', accountId)
       if (!accountId) {
         console.error('No accountId provided to switchAccount')
         return false
@@ -111,53 +109,54 @@ export const useLeadStore = defineStore('lead', {
       if (Object.keys(ACCOUNTS).includes(accountId)) {
         try {
           this.currentAccount = { ...ACCOUNTS[accountId] }
-           (`Switched to account: ${this.currentAccount.name} (ID: ${accountId}, Token: ${this.currentAccount.token})`)
+          console.log(
+            `Switched to account: ${this.currentAccount.name} (ID: ${accountId}, Token: ${this.currentAccount.token})`,
+          )
           return true
         } catch (error) {
           console.error('Error switching account:', error)
           return false
         }
       } else {
-        console.warn(`Invalid account ID: ${accountId}. Available IDs: ${Object.keys(ACCOUNTS).join(', ')}`)
+        console.warn(
+          `Invalid account ID: ${accountId}. Available IDs: ${Object.keys(ACCOUNTS).join(', ')}`,
+        )
         return false
       }
     },
 
     createApiClient(account) {
-       (`Creating API client for ${account.name} (Token: ${account.token}, Secret: ${account.secret})`);
-      const basicAuth = btoa(`${account.token}:${account.secret}`);
+      const basicAuth = btoa(`${account.token}:${account.secret}`)
       const headers = {
         Authorization: `Basic ${basicAuth}`,
         Accept: 'application/json',
-      };
-       ('API Request Headers:', headers);
+      }
       return axios.create({
         baseURL: 'https://app.whatconverts.com/api/v1',
         headers,
-      });
+      })
     },
 
     async fetchLeads(startDate, endDate, page = 1, leadsPerPage = 25) {
-      this.isLoading = true;
-  this.error = null;
-  this.leads = []; // Clear previous leads
-  this.totalLeads = 0;
-  this.totalPages = 0;
-  this.currentPage = page;
+      this.isLoading = true
+      this.error = null
+      this.leads = [] // Clear previous leads
+      this.totalLeads = 0
+      this.totalPages = 0
+      this.currentPage = page
 
-      const formattedStartDate = formatDate(startDate);
-      const formattedEndDate = formatDate(endDate);
+      const formattedStartDate = formatDate(startDate)
+      const formattedEndDate = formatDate(endDate)
 
       if (!formattedStartDate || !formattedEndDate) {
-        this.error = 'Invalid start or end date provided';
-        console.error('Invalid dates:', { startDate, endDate });
-        this.isLoading = false;
-        return;
+        this.error = 'Invalid start or end date provided'
+        console.error('Invalid dates:', { startDate, endDate })
+        this.isLoading = false
+        return
       }
 
       try {
-         (`Fetching leads for ${this.currentAccount.name} (Token: ${this.currentAccount.token})`);
-        const api = this.createApiClient(this.currentAccount);
+        const api = this.createApiClient(this.currentAccount)
         const response = await api.get('/leads', {
           params: {
             start_date: formattedStartDate,
@@ -166,37 +165,28 @@ export const useLeadStore = defineStore('lead', {
             leads_per_page: leadsPerPage,
             cache_buster: Date.now(), // Prevent caching
           },
-        });
-         ('Raw Axios response:', response);
-
-         (`API Response for ${this.currentAccount.name}:`, response.data);
-        if (response.data.leads && response.data.leads.length > 0) {
-           ('Sample lead data:', response.data.leads[0]);
-        } else {
-           ('No leads returned in response');
-        }
+        })
 
         if (response.data && Array.isArray(response.data.leads)) {
-           ('Updating store state with new leads');
-          this.leads = response.data.leads;
-          this.totalPages = response.data.total_pages || 1;
-          this.totalLeads = response.data.total_leads || this.leads.length;
-          this.currentPage = page;
-           ('Updated store state:', {
+          console.log('Updating store state with new leads')
+          this.leads = response.data.leads
+          this.totalPages = response.data.total_pages || 1
+          this.totalLeads = response.data.total_leads || this.leads.length
+          this.currentPage = page
+          console.log('Updated store state:', {
             leads: this.leads.length,
             totalLeads: this.totalLeads,
             totalPages: this.totalPages,
             currentPage: this.currentPage,
-          });
+          })
         } else {
-          throw new Error('Invalid data format received from API');
+          throw new Error('Invalid data format received from API')
         }
       } catch (err) {
-        this.handleError(err);
-        console.error('Error in fetchLeads:', err);
+        this.handleError(err)
+        console.error('Error in fetchLeads:', err)
       } finally {
-        this.isLoading = false;
-         ('fetchLeads completed, isLoading:', this.isLoading);
+        this.isLoading = false
       }
     },
 

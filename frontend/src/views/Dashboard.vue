@@ -158,20 +158,27 @@ const goToPage = async (page) => {
 }
 
 async function handleAccountSwitch(account) {
-   ('handleAccountSwitch called with account:', account);
-  const result = await leadStore.switchAccount(account.id);
-   ('switchAccount result:', result);
-  if (result) {
-    // Wait briefly to ensure store update propagates
-    await new Promise((resolve) => setTimeout(resolve, 100));
-     (`Fetching leads for account: ${account.id}`);
-     (`Current account in store: ${leadStore.currentAccount.name} (Token: ${leadStore.currentAccount.token})`);
-    await leadStore.fetchLeads(startDate.value, endDate.value, 1, leadStore.leadsPerPage);
-     ('Post-fetch store state:', {
-      leads: leadStore.leads.length,
-      totalLeads: leadStore.totalLeads,
-      totalPages: leadStore.totalPages,
-    });
+  console.log('handleAccountSwitch called with account:', account);
+  if (!account || !account.id) {
+    console.error('Invalid account provided to handleAccountSwitch:', account);
+    return;
+  }
+  try {
+    const result = await leadStore.switchAccount(account.id);
+    console.log('switchAccount result:', result);
+    if (result) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      console.log(`Fetching leads for account: ${account.id}`);
+      console.log(`Current account in store: ${leadStore.currentAccount.name} (Token: ${leadStore.currentAccount.token})`);
+      await leadStore.fetchLeads(startDate.value, endDate.value, 1, leadStore.leadsPerPage);
+      console.log('Post-fetch store state:', {
+        leads: leadStore.leads.length,
+        totalLeads: leadStore.totalLeads,
+        totalPages: leadStore.totalPages,
+      });
+    }
+  } catch (error) {
+    console.error('Error in handleAccountSwitch:', error);
   }
 }
 

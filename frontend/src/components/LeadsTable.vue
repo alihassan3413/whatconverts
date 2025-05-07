@@ -6,7 +6,7 @@
             <button
               v-for="account in accounts"
               :key="account.id"
-              @click="switchAccount(account)"
+              @click="() => switchAccount(account)"
               :class="[
                 'px-3 py-1 rounded-md text-sm font-medium transition-colors',
                 selectedAccount?.id === account.id
