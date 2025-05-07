@@ -196,6 +196,7 @@ export const useLeadStore = defineStore('lead', {
       let allLeads = []
 
       try {
+        const clientsMap = await this.fetchClients()
         const api = this.createApiClient(this.currentAccount)
         const firstPage = await api.get('/leads', {
           params: {
@@ -231,26 +232,29 @@ export const useLeadStore = defineStore('lead', {
           }
         }
 
-        return allLeads.map((lead) => ({
-          account_id: lead.account_id,
-          account: lead.account,
-          profile_id: lead.profile_id,
-          profile: lead.profile,
-          lead_id: lead.lead_id,
-          lead_type: lead.lead_type,
-          lead_status: lead.lead_status,
-          date_created: lead.date_created
-            ? new Date(lead.date_created).toISOString().split('T')[0]
-            : 'Invalid Date',
-          quotable: lead.quotable,
-          quote_value: lead.quote_value,
-          sales_value: lead.sales_value,
-          lead_source: lead.lead_source,
-          lead_medium: lead.lead_medium,
-          lead_campaign: lead.lead_campaign || '-',
-          spotted_keywords: lead.spotted_keywords || '-',
-          lead_keyword: lead.lead_keyword || '-',
-        }))
+        return allLeads.map((lead) => {
+          const clientId = clientsMap[lead.account_id]
+          return {
+            account_id: clientId || lead.account_id,
+            account: lead.account,
+            profile_id: lead.profile_id,
+            profile: lead.profile,
+            lead_id: lead.lead_id,
+            lead_type: lead.lead_type,
+            lead_status: lead.lead_status,
+            date_created: lead.date_created
+              ? new Date(lead.date_created).toISOString().split('T')[0]
+              : 'Invalid Date',
+            quotable: lead.quotable,
+            quote_value: lead.quote_value,
+            sales_value: lead.sales_value,
+            lead_source: lead.lead_source,
+            lead_medium: lead.lead_medium,
+            lead_campaign: lead.lead_campaign || '-',
+            spotted_keywords: lead.spotted_keywords || '-',
+            lead_keyword: lead.lead_keyword || '-',
+          }
+        })
       } catch (err) {
         this.handleError(err)
         return []
