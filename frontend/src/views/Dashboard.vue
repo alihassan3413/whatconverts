@@ -225,7 +225,7 @@ const exportToExcel = async () => {
     console.log(`Exporting ${allLeads.length} leads`, allLeads.slice(0, 5)); // Log first 5 leads for debugging
 
     const exportData = allLeads.map(lead => ({
-      'Client ID': lead.account_id, // account_id is already mapped to client_id in fetchAllLeadsForExport
+      'Account ID': lead.account_id, // account_id is already mapped to client_id in fetchAllLeadsForExport
       Account: lead.account,
       'Profile ID': lead.profile_id,
       Profile: lead.profile,
