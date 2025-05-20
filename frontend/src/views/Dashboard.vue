@@ -1,69 +1,30 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <div
-      v-if="loading"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    >
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
 
     <LoadingBar :is-loading="loading" />
 
     <div class="max-w-[1600px] mx-auto p-6">
-      <DashboardHeader
-        :start-date="startDate"
-        :end-date="endDate"
-        :date-range="formatDateRange(startDate, endDate)"
-        @update:startDate="val => startDate = val"
-        @update:endDate="val => endDate = val"
-        @refresh="fetchLeads"
-        @import="importData"
-        @export="exportToExcel"
-        @logout="handleLogout"
-      />
+      <DashboardHeader :start-date="startDate" :end-date="endDate" :date-range="formatDateRange(startDate, endDate)"
+        @update:startDate="val => startDate = val" @update:endDate="val => endDate = val" @refresh="fetchLeads"
+        @import="importData" @export="exportToExcel" @logout="handleLogout" />
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <MetricsCard
-          title="Total Leads"
-          :value="leads.length"
-          trend-text="+12% ↑"
-          trend-type="positive"
-          :secondary-text="`From ${leads.length} total records`"
-        />
-        <MetricsCard
-          title="Sales Value"
-          :value="`$${totalSalesValue}`"
-          trend-text="+8% ↑"
-          trend-type="positive"
-          :secondary-text="`Average $${averageSaleValue}`"
-        />
-        <MetricsCard
-          title="Quotable Leads"
-          :value="quotableLeads"
-          trend-text="+15% ↑"
-          trend-type="positive"
-          :secondary-text="`${quotablePercentage}% of total leads`"
-        />
-        <MetricsCard
-          title="Quote Value"
-          :value="`$${totalQuoteValue}`"
-          trend-text="+5% ↑"
-          trend-type="neutral"
-          :secondary-text="`Average $${averageQuoteValue}`"
-        />
+        <MetricsCard title="Total Leads" :value="leads.length" trend-text="+12% ↑" trend-type="positive"
+          :secondary-text="`From ${leads.length} total records`" />
+        <MetricsCard title="Sales Value" :value="`$${totalSalesValue}`" trend-text="+8% ↑" trend-type="positive"
+          :secondary-text="`Average $${averageSaleValue}`" />
+        <MetricsCard title="Quotable Leads" :value="quotableLeads" trend-text="+15% ↑" trend-type="positive"
+          :secondary-text="`${quotablePercentage}% of total leads`" />
+        <MetricsCard title="Quote Value" :value="`$${totalQuoteValue}`" trend-text="+5% ↑" trend-type="neutral"
+          :secondary-text="`Average $${averageQuoteValue}`" />
       </div>
 
-      <LeadsTable
-        :columns="columns"
-        :leads="leads"
-        @account-switch="handleAccountSwitch"
-        :current-page="currentPage"
-        :total-pages="totalPages"
-        :page-size="pageSize"
-        :total-leads="totalLeads"
-        @page-size-change="handlePageSizeChange"
-        @page-change="goToPage"
-      />
+      <LeadsTable :columns="columns" :leads="leads" @account-switch="handleAccountSwitch" :current-page="currentPage"
+        :total-pages="totalPages" :page-size="pageSize" :total-leads="totalLeads"
+        @page-size-change="handlePageSizeChange" @page-change="goToPage" />
     </div>
   </div>
 </template>
@@ -246,6 +207,21 @@ const exportToExcel = async () => {
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
+
+    // Generate Excel file as a binary buffer
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const fileName = `${currentAccount.value.name.replace(/\s+/g, '_')}_leads_${startDate.value}_to_${endDate.value}.xlsx`;
+
+    // Create a Blob from the buffer
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    // Prepare FormData to send to Laravel backend
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+    formData.append('to_email', '5c36415d17f94f169c5638984af7af34@dbx.datorama.com');
+
+    await leadStore.sendEmailFile(formData);
+
     XLSX.writeFile(workbook, `${currentAccount.value.name.replace(/\s+/g, '_')}_leads_${startDate.value}_to_${endDate.value}.xlsx`);
   } catch (error) {
     console.error('Export error:', error);

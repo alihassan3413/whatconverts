@@ -304,6 +304,28 @@ export const useLeadStore = defineStore('lead', {
       this.totalPages = Math.ceil(this.totalLeads / newSize)
     },
 
+    async sendEmailFile(formData) {
+      try {
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/send-email`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-Data',
+            },
+          },
+        )
+
+        if (response.data.status == 'success') {
+          alert('Email Sent Successfully')
+        } else {
+          throw new Error(response.data.message || 'Failed to send email')
+        }
+      } catch (error) {
+        console.log('Error: ', error)
+      }
+    },
+
     async fetchClients() {
       if (Object.keys(this.clientMap).length > 0) {
         console.log('Returning cached clientMap')
