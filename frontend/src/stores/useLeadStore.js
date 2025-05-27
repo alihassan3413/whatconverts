@@ -15,7 +15,7 @@ const ACCOUNTS = {
     name: 'Secondary Account',
     token: '8466-035cefafcf94d90f',
     secret: '3d17deb69503b6daf73e9bbcc682444d',
-  },
+  }, 
 }
 
 const formatDate = (date) => {
@@ -103,6 +103,7 @@ export const useLeadStore = defineStore('lead', {
     availableAccounts: () => [
       { id: 'account1', name: 'Main Account' },
       { id: 'account2', name: 'Secondary Account' },
+      { id: 'combined', name: 'Combined Accounts' },
     ],
   },
 
@@ -112,7 +113,12 @@ export const useLeadStore = defineStore('lead', {
         console.error('No accountId provided to switchAccount')
         return false
       }
-      if (Object.keys(ACCOUNTS).includes(accountId)) {
+      if (accountId === 'combined') {
+        this.currentAccount = { id: 'combined', name: 'Combined Accounts' }
+        console.log('Switched to combined accounts')
+        this.leads = [] // Reset leads to avoid stale data
+        return true
+      } else if (Object.keys(ACCOUNTS).includes(accountId)) {
         try {
           this.currentAccount = { ...ACCOUNTS[accountId] }
           console.log(
@@ -164,31 +170,98 @@ export const useLeadStore = defineStore('lead', {
       }
 
       try {
-        const api = this.createApiClient(this.currentAccount)
-        const response = await api.get('/leads', {
-          params: {
-            start_date: formattedStartDate,
-            end_date: formattedEndDate,
-            page_number: page,
-            leads_per_page: leadsPerPage,
-            cache_buster: Date.now(),
-          },
-        })
+        if (this.currentAccount.id === 'combined') {
+          // Fetch leads from both accounts concurrently
+          const fetchPromises = Object.keys(ACCOUNTS).map(async (accountId) => {
+            const account = ACCOUNTS[accountId]
+            const api = this.createApiClient(account)
+            const response = await api.get('/leads', {
+              params: {
+                start_date: formattedStartDate,
+                end_date: formattedEndDate,
+                page_number: page,
+                leads_per_page: leadsPerPage,
+                cache_buster: Date.now(),
+              },
+            })
 
-        if (response.data && Array.isArray(response.data.leads)) {
-          console.log(`Fetched ${response.data.leads.length} leads for ${this.currentAccount.name}`)
-          this.leads = response.data.leads
-          this.totalPages = response.data.total_pages || 1
-          this.totalLeads = response.data.total_leads || this.leads.length
+            if (!response.data || !Array.isArray(response.data.leads)) {
+              throw new Error(`Invalid data format received from API for ${account.name}`)
+            }
+
+            return {
+              leads: response.data.leads, // Use raw leads, preserving original account_id
+              totalLeads: response.data.total_leads || response.data.leads.length,
+              totalPages: response.data.total_pages || 1,
+            }
+          })
+
+          const results = await Promise.all(
+            fetchPromises.map((promise) =>
+              promise.catch((err) => {
+                console.warn(`Error fetching leads for an account:`, err)
+                return { leads: [], totalLeads: 0, totalPages: 1 } // Return empty result on error
+              }),
+            ),
+          )
+
+          // Combine results
+          let allLeads = []
+          let totalLeads = 0
+          let maxPages = 1
+
+          results.forEach((result) => {
+            allLeads = [...allLeads, ...result.leads]
+            totalLeads += result.totalLeads
+            maxPages = Math.max(maxPages, result.totalPages)
+          })
+
+          // Sort leads by date_created (descending)
+          allLeads.sort((a, b) => new Date(b.date_created) - new Date(a.date_created))
+
+          // Paginate combined results
+          const startIndex = (page - 1) * leadsPerPage
+          this.leads = allLeads.slice(startIndex, startIndex + leadsPerPage)
+          this.totalLeads = totalLeads
+          this.totalPages = Math.ceil(totalLeads / leadsPerPage)
           this.currentPage = page
-          console.log('Updated store state:', {
+
+          console.log('Updated store state for combined accounts:', {
             leads: this.leads.length,
             totalLeads: this.totalLeads,
             totalPages: this.totalPages,
             currentPage: this.currentPage,
           })
         } else {
-          throw new Error('Invalid data format received from API')
+          // Single account fetch
+          const api = this.createApiClient(this.currentAccount)
+          const response = await api.get('/leads', {
+            params: {
+              start_date: formattedStartDate,
+              end_date: formattedEndDate,
+              page_number: page,
+              leads_per_page: leadsPerPage,
+              cache_buster: Date.now(),
+            },
+          })
+
+          if (response.data && Array.isArray(response.data.leads)) {
+            console.log(
+              `Fetched ${response.data.leads.length} leads for ${this.currentAccount.name}`,
+            )
+            this.leads = response.data.leads
+            this.totalPages = response.data.total_pages || 1
+            this.totalLeads = response.data.total_leads || this.leads.length
+            this.currentPage = page
+            console.log('Updated store state:', {
+              leads: this.leads.length,
+              totalLeads: this.totalLeads,
+              totalPages: this.totalPages,
+              currentPage: this.currentPage,
+            })
+          } else {
+            throw new Error('Invalid data format received from API')
+          }
         }
       } catch (err) {
         this.handleError(err)
@@ -205,56 +278,147 @@ export const useLeadStore = defineStore('lead', {
 
       try {
         const clientsMap = await this.fetchClients()
-        console.log(`Fetching leads for account: ${account.name} (ID: ${account.id})`)
-        const api = this.createApiClient(account)
-        const firstPage = await api.get('/leads', {
-          params: {
-            start_date: formatDate(startDate),
-            end_date: formatDate(endDate),
-            page_number: 1,
-            leads_per_page: 250,
-            cache_buster: Date.now(),
-          },
-        })
 
-        if (!firstPage.data || !Array.isArray(firstPage.data.leads)) {
-          throw new Error('Invalid data format received from API')
-        }
-
-        const totalPages = firstPage.data.total_pages || 1
-        allLeads = [...firstPage.data.leads]
-        console.log(
-          `Account ${account.name}: Fetched page 1/${totalPages}, ${allLeads.length} leads`,
-        )
-
-        if (totalPages > 1) {
-          for (let page = 2; page <= totalPages; page++) {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
-            const response = await api.get('/leads', {
+        if (account.id === 'combined') {
+          // Fetch leads from all accounts concurrently
+          const fetchPromises = Object.keys(ACCOUNTS).map(async (accountId) => {
+            const acc = ACCOUNTS[accountId]
+            console.log(`Fetching leads for account: ${acc.name} (ID: ${acc.id})`)
+            const api = this.createApiClient(acc)
+            const firstPage = await api.get('/leads', {
               params: {
                 start_date: formatDate(startDate),
                 end_date: formatDate(endDate),
-                page_number: page,
+                page_number: 1,
                 leads_per_page: 250,
                 cache_buster: Date.now(),
               },
             })
 
-            if (response.data && Array.isArray(response.data.leads)) {
-              allLeads = [...allLeads, ...response.data.leads]
-              console.log(
-                `Account ${account.name}: Fetched page ${page}/${totalPages}, ${allLeads.length} leads`,
+            if (!firstPage.data || !Array.isArray(firstPage.data.leads)) {
+              throw new Error(`Invalid data format received from API for ${acc.name}`)
+            }
+
+            let accountLeads = [...firstPage.data.leads] // Use raw leads
+            const totalPages = firstPage.data.total_pages || 1
+            console.log(
+              `Account ${acc.name}: Fetched page 1/${totalPages}, ${accountLeads.length} leads`,
+            )
+
+            if (totalPages > 1) {
+              const pagePromises = []
+              for (let page = 2; page <= totalPages; page++) {
+                pagePromises.push(
+                  api.get('/leads', {
+                    params: {
+                      start_date: formatDate(startDate),
+                      end_date: formatDate(endDate),
+                      page_number: page,
+                      leads_per_page: 250,
+                      cache_buster: Date.now(),
+                    },
+                  }),
+                )
+              }
+
+              const pageResults = await Promise.all(
+                pagePromises.map((promise) =>
+                  promise.catch((err) => {
+                    console.warn(`Error fetching page for ${acc.name}:`, err)
+                    return { data: { leads: [] } } // Return empty result on error
+                  }),
+                ),
+              )
+
+              pageResults.forEach((response, index) => {
+                if (response.data && Array.isArray(response.data.leads)) {
+                  accountLeads = [...accountLeads, ...response.data.leads]
+                  console.log(
+                    `Account ${acc.name}: Fetched page ${index + 2}/${totalPages}, ${accountLeads.length} leads`,
+                  )
+                }
+              })
+            }
+
+            return accountLeads
+          })
+
+          const results = await Promise.all(
+            fetchPromises.map((promise) =>
+              promise.catch((err) => {
+                console.warn(`Error fetching leads for an account:`, err)
+                return [] // Return empty array on error
+              }),
+            ),
+          )
+
+          // Combine all leads
+          allLeads = results.flat()
+          console.log(`Total leads for combined accounts: ${allLeads.length}`)
+        } else {
+          // Single account fetch
+          console.log(`Fetching leads for account: ${account.name} (ID: ${account.id})`)
+          const api = this.createApiClient(account)
+          const firstPage = await api.get('/leads', {
+            params: {
+              start_date: formatDate(startDate),
+              end_date: formatDate(endDate),
+              page_number: 1,
+              leads_per_page: 250,
+              cache_buster: Date.now(),
+            },
+          })
+
+          if (!firstPage.data || !Array.isArray(firstPage.data.leads)) {
+            throw new Error('Invalid data format received from API')
+          }
+
+          allLeads = [...firstPage.data.leads]
+          console.log(
+            `Account ${account.name}: Fetched page 1/${firstPage.data.total_pages || 1}, ${allLeads.length} leads`,
+          )
+
+          const totalPages = firstPage.data.total_pages || 1
+          if (totalPages > 1) {
+            const pagePromises = []
+            for (let page = 2; page <= totalPages; page++) {
+              pagePromises.push(
+                api.get('/leads', {
+                  params: {
+                    start_date: formatDate(startDate),
+                    end_date: formatDate(endDate),
+                    page_number: page,
+                    leads_per_page: 250,
+                    cache_buster: Date.now(),
+                  },
+                }),
               )
             }
+
+            const pageResults = await Promise.all(
+              pagePromises.map((promise) =>
+                promise.catch((err) => {
+                  console.warn(`Error fetching page for ${account.name}:`, err)
+                  return { data: { leads: [] } } // Return empty result on error
+                }),
+              ),
+            )
+
+            pageResults.forEach((response, index) => {
+              if (response.data && Array.isArray(response.data.leads)) {
+                allLeads = [...allLeads, ...response.data.leads]
+                console.log(
+                  `Account ${account.name}: Fetched page ${index + 2}/${totalPages}, ${allLeads.length} leads`,
+                )
+              }
+            })
           }
         }
 
-        console.log(`Total leads for ${account.name}: ${allLeads.length}`)
         return allLeads.map((lead) => {
-          const clientId = clientsMap[lead.account_id]
+          const clientId = this.clientMap[lead.account_id] || lead.account_id
           return {
-            account_id: clientId || lead.account_id,
-            account: lead.account,
+            account_id: clientId,
             profile_id: lead.profile_id,
             profile: lead.profile,
             lead_id: lead.lead_id,
