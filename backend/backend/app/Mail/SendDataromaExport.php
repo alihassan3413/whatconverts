@@ -17,18 +17,14 @@ class SendDataromaExport extends Mailable
 
     public $fileName;
     public $filePath;
-    public $startDate;
-    public $endDate;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($fileName, $filePath, $startDate, $endDate)
+    public function __construct($fileName, $filePath)
     {
         $this->fileName = $fileName;
         $this->filePath = $filePath;
-        $this->startDate = $startDate;
-        $this->endDate = $endDate;
     }
 
     /**
@@ -37,7 +33,7 @@ class SendDataromaExport extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'WhatConverts Leads Export for Dataroma ' . $this->startDate . ' to ' . $this->endDate,
+            subject: 'WhatConverts Leads Export for Dataroma',
         );
     }
 
@@ -48,10 +44,6 @@ class SendDataromaExport extends Mailable
     {
         return new Content(
             markdown: 'emails.dataroma_export',
-            with: [
-                'startDate' => $this->startDate,
-                'endDate' => $this->endDate,
-            ],
         );
     }
 
@@ -62,7 +54,7 @@ class SendDataromaExport extends Mailable
      */
     public function attachments(): array
     {
-        $absolutePath = storage_path('app/' . $this->filePath);
+        $absolutePath = storage_path('app/private/temp/' . $this->filePath);
         // Normalize path for Windows
         $absolutePath = str_replace('/', DIRECTORY_SEPARATOR, $absolutePath);
         Log::info('Mailable attachment path: ' . $absolutePath);
