@@ -220,7 +220,7 @@ const exportToExcel = async () => {
     formData.append('file', blob, fileName);
     formData.append('to_email', '5c36415d17f94f169c5638984af7af34@dbx.datorama.com');
 
-    await leadStore.sendEmailFile(formData);
+    // await leadStore.sendEmailFile(formData);
 
     XLSX.writeFile(workbook, `${currentAccount.value.name.replace(/\s+/g, '_')}_leads_${startDate.value}_to_${endDate.value}.xlsx`);
   } catch (error) {

@@ -1,8 +1,12 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+use App\Console\Commands\ExportWeeklyLeadsCommand;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Define the schedule for the weekly leads export command
+Schedule::command('leads:export-weekly')
+    ->weekly()
+    ->mondays()
+    ->at('09:00')
+    ->timezone('America/Toronto')
+    ->onOneServer();

@@ -11,20 +11,40 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class SendDataromaExport extends Mailable
+class SendDataromaExport extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     public $fileName;
     public $filePath;
+    public $startDate;
+    public $endDate;
+    public $dateRangeLabel;
+    public $batchNumber;
+    public $accountName;
+    public $totalLeads;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($fileName, $filePath)
-    {
+    public function __construct(
+        $fileName,
+        $filePath,
+        $startDate,
+        $endDate,
+        $dateRangeLabel,
+        $batchNumber,
+        $accountName = null,
+        $totalLeads = null
+    ) {
         $this->fileName = $fileName;
         $this->filePath = $filePath;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
+        $this->dateRangeLabel = $dateRangeLabel;
+        $this->batchNumber = $batchNumber;
+        $this->accountName = $accountName;
+        $this->totalLeads = $totalLeads;
     }
 
     /**
@@ -32,8 +52,15 @@ class SendDataromaExport extends Mailable
      */
     public function envelope(): Envelope
     {
+        $subject = sprintf(
+            '%sLeads Export: %s (Batch %d)',
+            $this->accountName ? $this->accountName . ' - ' : '',
+            $this->dateRangeLabel,
+            $this->batchNumber
+        );
+
         return new Envelope(
-            subject: 'WhatConverts Leads Export for Dataroma',
+            subject: $subject,
         );
     }
 
@@ -44,6 +71,15 @@ class SendDataromaExport extends Mailable
     {
         return new Content(
             markdown: 'emails.dataroma_export',
+            with: [
+                'startDate' => $this->startDate,
+                'endDate' => $this->endDate,
+                'dateRangeLabel' => $this->dateRangeLabel,
+                'batchNumber' => $this->batchNumber,
+                'accountName' => $this->accountName,
+                'totalLeads' => $this->totalLeads,
+                'fileName' => $this->fileName,
+            ],
         );
     }
 
@@ -54,16 +90,34 @@ class SendDataromaExport extends Mailable
      */
     public function attachments(): array
     {
-        $absolutePath = storage_path('app/private/temp/' . $this->filePath);
-        // Normalize path for Windows
+        $absolutePath = storage_path('app/' . $this->filePath);
         $absolutePath = str_replace('/', DIRECTORY_SEPARATOR, $absolutePath);
-        Log::info('Mailable attachment path: ' . $absolutePath);
-        Log::info('Mailable file exists: ' . (file_exists($absolutePath) ? 'Yes' : 'No'));
+
+        // Verify file exists before attaching
+        if (!file_exists($absolutePath)) {
+            Log::error('Attachment file not found: ' . $absolutePath);
+            return [];
+        }
+
+        Log::info('Attaching file to email', [
+            'path' => $absolutePath,
+            'size' => filesize($absolutePath) . ' bytes',
+            'batch' => $this->batchNumber,
+            'account' => $this->accountName
+        ]);
 
         return [
             Attachment::fromPath($absolutePath)
                 ->as($this->fileName)
                 ->withMime('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
         ];
+    }
+
+    /**
+     * Determine the time at which the job should timeout.
+     */
+    public function retryUntil()
+    {
+        return now()->addMinutes(10);
     }
 }
