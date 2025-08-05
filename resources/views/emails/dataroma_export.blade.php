@@ -1,8 +1,15 @@
 @component('mail::message')
+# {{ $accountName ?? 'Leads' }} Export - Batch {{ $batchNumber }}
 
-# WhatConverts Leads Export
+**Date Range:** {{ $dateRangeLabel }}  
+**File:** {{ $fileName }}  
+**Total Leads:** {{ $totalLeads ?? 'N/A' }}  
 
-Attached is the leads data export for Datorama.
+@component('mail::panel')
+Export details:
+- Start Date: {{ $startDate }}
+- End Date: {{ $endDate }}
+@endcomponent
 
 Thanks,
 {{ config('app.name') }}
