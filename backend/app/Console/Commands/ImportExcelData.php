@@ -25,6 +25,7 @@ class ImportExcelData extends Command
             if ($row[0] === 'date') {
                 continue;
             }
+
             // Save data to the database
             DB::table('client_data')->insert([
                 'what_converts_id' => $row[6],
