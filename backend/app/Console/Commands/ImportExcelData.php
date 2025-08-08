@@ -26,6 +26,8 @@ class ImportExcelData extends Command
                 continue;
             }
 
+
+            
             // Save data to the database
             DB::table('client_data')->insert([
                 'what_converts_id' => $row[6],
