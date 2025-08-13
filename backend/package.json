@@ -3,7 +3,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "postinstall": "npm install && npm run build"
     },
     "dependencies": {
         "@heroicons/vue": "^1.0.6",
