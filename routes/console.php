@@ -10,3 +10,10 @@ Schedule::command('leads:export-weekly')
     ->at('09:00')
     ->timezone('America/Toronto')
     ->onOneServer();
+
+Schedule::command('leads:export --days=365 --batch=15')
+    ->weekly()
+    ->saturdays()
+    ->at('00:00')
+    ->timezone('America/Toronto')
+    ->onOneServer();

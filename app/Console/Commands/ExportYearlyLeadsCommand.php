@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 class ExportYearlyLeadsCommand extends Command
 {
-    protected $signature = 'leads:export-test 
+    protected $signature = 'leads:export 
                             {--days=7 : Number of days to export} 
                             {--batch=1 : Days per batch}';
     protected $description = 'Test export with configurable date range';
