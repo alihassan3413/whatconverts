@@ -13,7 +13,7 @@ Schedule::command('leads:export-weekly')
 
 Schedule::command('leads:export --days=365 --batch=15')
     ->weekly()
-    ->saturdays()
-    ->at('00:00')
+    ->mondays()
+    ->at('14:30')
     ->timezone('America/Toronto')
     ->onOneServer();
