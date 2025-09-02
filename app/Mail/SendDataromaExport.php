@@ -9,36 +9,35 @@ use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class SendDataromaExport extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public $fileName;
-    public $filePath;
-    public $startDate;
-    public $endDate;
-    public $dateRangeLabel;
-    public $batchNumber;
-    public $accountName;
-    public $totalLeads;
+    public string $fileName;
+    public string $fileContent;
+    public string $startDate;
+    public string $endDate;
+    public string $dateRangeLabel;
+    public int $batchNumber;
+    public ?string $accountName;
+    public ?int $totalLeads;
 
     /**
      * Create a new message instance.
      */
     public function __construct(
-        $fileName,
-        $filePath,
-        $startDate,
-        $endDate,
-        $dateRangeLabel,
-        $batchNumber,
-        $accountName = null,
-        $totalLeads = null
+        string $fileName,
+        string $fileContent,   // <-- binary Excel content instead of path
+        string $startDate,
+        string $endDate,
+        string $dateRangeLabel,
+        int $batchNumber,
+        ?string $accountName = null,
+        ?int $totalLeads = null
     ) {
         $this->fileName = $fileName;
-        $this->filePath = $filePath;
+        $this->fileContent = base64_encode($fileContent); // encode for queue safety
         $this->startDate = $startDate;
         $this->endDate = $endDate;
         $this->dateRangeLabel = $dateRangeLabel;
@@ -90,26 +89,11 @@ class SendDataromaExport extends Mailable implements ShouldQueue
      */
     public function attachments(): array
     {
-        $absolutePath = storage_path('app/' . $this->filePath);
-        $absolutePath = str_replace('/', DIRECTORY_SEPARATOR, $absolutePath);
-
-        // Verify file exists before attaching
-        if (!file_exists($absolutePath)) {
-            Log::error('Attachment file not found: ' . $absolutePath);
-            return [];
-        }
-
-        Log::info('Attaching file to email', [
-            'path' => $absolutePath,
-            'size' => filesize($absolutePath) . ' bytes',
-            'batch' => $this->batchNumber,
-            'account' => $this->accountName
-        ]);
-
         return [
-            Attachment::fromPath($absolutePath)
-                ->as($this->fileName)
-                ->withMime('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+            Attachment::fromData(
+                fn () => base64_decode($this->fileContent), // decode here
+                $this->fileName
+            )->withMime('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
         ];
     }
 

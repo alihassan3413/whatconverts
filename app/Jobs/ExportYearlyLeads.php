@@ -202,10 +202,10 @@ class ExportYearlyLeads implements ShouldQueue
             $headers = array_keys($chunk[0] ?? []);
             if (!empty($headers)) {
                 $sheet->fromArray($headers, null, 'A1');
-                
+
                 // Add data
                 $sheet->fromArray($chunk, null, 'A2');
-                
+
                 // Auto-size columns
                 foreach (range('A', chr(64 + count($headers))) as $column) {
                     $sheet->getColumnDimension($column)->setAutoSize(true);
@@ -218,27 +218,17 @@ class ExportYearlyLeads implements ShouldQueue
                     $fileCount,
                     $this->dateRangeLabel
                 );
-                
-                // Create directory if it doesn't exist
-                $directory = 'private/temp';
-                // Correct path building - only prepend storage_path once
-                $fullPath = storage_path("app/{$directory}/{$fileName}"); 
 
-                // Ensure directory exists
-                if (!file_exists(dirname($fullPath))) {
-                    mkdir(dirname($fullPath), 0755, true);
-                }
-
-                // Use DIRECTORY_SEPARATOR for cross-platform compatibility
-                $filePath = $directory . DIRECTORY_SEPARATOR . $fileName;
-
+                // Write Excel file to memory instead of disk
                 $writer = new Xlsx($spreadsheet);
-                $writer->save($fullPath);
+                ob_start();
+                $writer->save('php://output');
+                $excelContent = ob_get_clean();
 
                 $fileData[] = [
-                    'fileName' => $fileName,
-                    'filePath' => $filePath,
-                    'leadCount' => count($chunk)
+                    'fileName'   => $fileName,
+                    'content'    => $excelContent, // binary data
+                    'leadCount'  => count($chunk),
                 ];
 
                 $fileCount++;
@@ -248,13 +238,14 @@ class ExportYearlyLeads implements ShouldQueue
         return $fileData;
     }
 
+
     public function handle()
     {
         Log::info('Processing leads batch', [
             'batch_number' => $this->batchNumber,
-            'date_range' => $this->dateRangeLabel,
-            'start_date' => $this->startDate,
-            'end_date' => $this->endDate,
+            'date_range'   => $this->dateRangeLabel,
+            'start_date'   => $this->startDate,
+            'end_date'     => $this->endDate,
         ]);
 
         $clientMap = $this->fetchClients();
@@ -277,7 +268,7 @@ class ExportYearlyLeads implements ShouldQueue
                     Mail::to('5c36415d17f94f169c5638984af7af34@dbx.datorama.com')
                         ->send(new SendDataromaExport(
                             $file['fileName'],
-                            $file['filePath'],
+                            $file['content'], // now binary content
                             $this->startDate,
                             $this->endDate,
                             $this->dateRangeLabel,
@@ -287,12 +278,10 @@ class ExportYearlyLeads implements ShouldQueue
                         ));
 
                     Log::info("Email sent for {$account['name']}", [
-                        'file' => $file['fileName'],
+                        'file'  => $file['fileName'],
                         'leads' => $file['leadCount'],
                         'batch' => $this->batchNumber
                     ]);
-
-                    Storage::delete($file['filePath']);
                 }
 
             } catch (\Exception $e) {
@@ -304,4 +293,5 @@ class ExportYearlyLeads implements ShouldQueue
             }
         }
     }
+
 }
